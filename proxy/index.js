@@ -24,3 +24,5 @@ wss.on('connection', function (ws) {
     }
   });
 });
+
+console.log('Listening on', 8081);
