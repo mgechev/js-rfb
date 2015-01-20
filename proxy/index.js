@@ -9,7 +9,7 @@ wss.on('connection', function (ws) {
   ws.on('message', function (msg) {
     msg = JSON.parse(msg);
     if (msg.type === 'handshake') {
-      client = net.connect(msg.host, msg.port, function () {
+      client = net.createConnection(msg.port, msg.host, function () {
         console.log('Connected');
       });
       client.on('data', function (data) {
