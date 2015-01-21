@@ -10,4 +10,7 @@ var rfbHandshake = new Handshake(bridge);
 var rfbLifeSpan = new RfbLifeSpan(bridge);
 bridge.setStates(rfbHandshake, rfbLifeSpan);
 
-bridge.connect();
+bridge.connect()
+  .then(function () {
+    console.log('Connected');
+  });

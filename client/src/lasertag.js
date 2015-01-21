@@ -6,12 +6,12 @@ function LaserTag(config) {
   this.host = config.host;
   this.port = config.port;
   this.states = config.states;
-  this.state = this.states[0];
+  this.state = (this.states || [])[0];
   this.initialized = false;
   EventEmitter.call(this);
 }
 
-LaserTag.prototype = Object.create(EventEmitter);
+LaserTag.prototype = Object.create(EventEmitter.prototype);
 
 LaserTag.prototype.setStates = function (states) {
   if (arguments.length > 1) {
@@ -22,13 +22,13 @@ LaserTag.prototype.setStates = function (states) {
   } else {
     this.states = states;
   }
-  this.state = states[0];
+  this.state = this.states[0];
 };
 
 LaserTag.prototype.connect = function () {
   this.socket = new WebSocket('ws://localhost:8081');
   var deferred = Promise.defer();
-  this.socket.onopen = this.initiateHandshake.bind(this);
+  this.socket.onopen = this.initiateHandshake.bind(this, deferred);
   this.socket.onmessage = this.handleMessage.bind(this);
   return deferred.promise;
 };
@@ -36,7 +36,7 @@ LaserTag.prototype.connect = function () {
 LaserTag.prototype.handleMessage = function (msg) {
   if (!this.initialized) {
     try {
-      msg = JSON.parse(msg);
+      msg = JSON.parse(msg.data);
       if (msg.type === 'handshake' && msg.status === 'success') {
         this.emit('handshake-success');
       } else {
@@ -46,19 +46,21 @@ LaserTag.prototype.handleMessage = function (msg) {
     } catch (e) {
       console.error('Error while parsing');
     }
+  } else {
+    this.state.readMessage(msg.data)
+      .then(function (msg) {
+        this.state.handleMessage(msg);
+      }.bind(this));
   }
-  var reader = new FileReader();
-  reader.onload = function (e) {
-    this.state.handleMessage(e.target.result);
-  }.bind(this);
-  reader.readAsText(msg);
 };
 
-LaserTag.prototype.initiateHandshake = function () {
-  this.socket.send({
+LaserTag.prototype.initiateHandshake = function (deferred) {
+  this.socket.send(JSON.stringify({
     host: this.host,
-    port: this.port
-  });
+    port: this.port,
+    type: 'handshake'
+  }));
+  deferred.resolve();
 };
 
 LaserTag.prototype.send = function (msg) {

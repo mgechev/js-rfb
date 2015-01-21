@@ -7,6 +7,7 @@ var net = require('net');
 wss.on('connection', function (ws) {
   var client;
   ws.on('message', function (msg) {
+    console.log('Message received');
     try {
       msg = JSON.parse(msg);
     } catch (e) {
@@ -17,10 +18,10 @@ wss.on('connection', function (ws) {
     if (msg.type === 'handshake') {
       client = net.createConnection(msg.port, msg.host, function () {
         console.log('Connected');
-        ws.send({
+        ws.send(JSON.stringify({
           type: 'handshake',
           status: 'success'
-        });
+        }));
       });
       client.on('data', function (data) {
         console.log('data');
