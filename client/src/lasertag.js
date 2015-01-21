@@ -5,13 +5,25 @@
 function LaserTag(config) {
   this.host = config.host;
   this.port = config.port;
-  this.state = config.initialState;
   this.states = config.states;
+  this.state = this.states[0];
   this.initialized = false;
   EventEmitter.call(this);
 }
 
 LaserTag.prototype = Object.create(EventEmitter);
+
+LaserTag.prototype.setStates = function (states) {
+  if (arguments.length > 1) {
+    this.states = [];
+    for (var i = 0; i < arguments.length; i += 1) {
+      this.states.push(arguments[i]);
+    }
+  } else {
+    this.states = states;
+  }
+  this.state = states[0];
+};
 
 LaserTag.prototype.connect = function () {
   this.socket = new WebSocket('ws://localhost:8081');
@@ -47,4 +59,8 @@ LaserTag.prototype.initiateHandshake = function () {
     host: this.host,
     port: this.port
   });
+};
+
+LaserTag.prototype.send = function (msg) {
+  this.socket.send(msg);
 };
