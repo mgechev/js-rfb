@@ -1,0 +1,19 @@
+{
+  "name": "js-rfb",
+  "version": "0.0.0",
+  "homepage": "https://github.com/mgechev/js-rfb",
+  "authors": [
+    "mgechev <mgechev@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "eventEmitter": "~4.2.11"
+  }
+}

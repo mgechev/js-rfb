@@ -7,10 +7,20 @@ var net = require('net');
 wss.on('connection', function (ws) {
   var client;
   ws.on('message', function (msg) {
-    msg = JSON.parse(msg);
+    try {
+      msg = JSON.parse(msg);
+    } catch (e) {
+      if (client) {
+        client.write(msg);
+      }
+    }
     if (msg.type === 'handshake') {
       client = net.createConnection(msg.port, msg.host, function () {
         console.log('Connected');
+        ws.send({
+          type: 'handshake',
+          status: 'success'
+        });
       });
       client.on('data', function (data) {
         console.log('data');
@@ -19,8 +29,6 @@ wss.on('connection', function (ws) {
       client.on('end', function () {
         console.log('end');
       });
-    } else {
-      client.send(msg);
     }
   });
 });
