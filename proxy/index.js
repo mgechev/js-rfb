@@ -28,6 +28,7 @@ wss.on('connection', function (ws) {
       });
       client.on('end', function () {
         console.log('end');
+        ws.close();
       });
     }
   });
