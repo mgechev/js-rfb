@@ -22,9 +22,9 @@ BaseState.prototype.setMessageType = function (type) {
 BaseState.prototype.readMessage = function (msg) {
   var reader = new FileReader();
   var deferred = Promise.defer();
-  reader.onload = function (e) {
+  reader.addEventListener('loadend', function (e) {
     deferred.resolve(e.target.result);
-  }.bind(this);
+  }, false);
   reader['readAs' + this.messageType](msg);
   return deferred.promise;
 };
