@@ -4,7 +4,7 @@
 
 var bridge = new LaserTag({
   host: '192.168.0.118',
-  port: 5900
+  port: 5901
 });
 var rfbHandshake = new Handshake(bridge);
 var rfbLifeSpan = new RfbLifeSpan(bridge);
