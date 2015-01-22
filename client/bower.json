@@ -14,6 +14,7 @@
     "tests"
   ],
   "dependencies": {
-    "eventEmitter": "~4.2.11"
+    "eventEmitter": "~4.2.11",
+    "blobreader": "~0.0.1"
   }
 }

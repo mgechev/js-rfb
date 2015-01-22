@@ -1,6 +1,6 @@
 'use strict';
 
-/* global BaseState, MESSAGE_TYPES */
+/* global BaseState, MESSAGE_TYPES, BlobReader */
 
 function Handshake(bridge) {
   BaseState.call(this, bridge, MESSAGE_TYPES.BINARY_STRING);
@@ -97,7 +97,9 @@ Handshake.prototype = Object.create(BaseState.prototype);
 //    msg = new Uint8Array(msg);
 //    if (msg.length === 16) {
 //      console.log(msg.length);
-//      var res = CryptoJS.DES.encrypt(convertUint8ArrayToBinaryString(msg), 'paralaks', { mode: CryptoJS.mode.OFB });
+//      var res = CryptoJS.DES.encrypt
+//      (convertUint8ArrayToBinaryString(msg),
+//      'paralaks', { mode: CryptoJS.mode.OFB });
 //      if (res.ciphertext.words.length === 8) {
 //        res = convertWordArrayToUint8Array(res.ciphertext);
 //        console.log(res.length);
@@ -113,28 +115,29 @@ Handshake.prototype = Object.create(BaseState.prototype);
 //};
 //
 
-function BlobReader(blob) {
-  if (!(this instanceof BlobReader)) {
-    return new BlobReader(blob);
-  }
-  this.blob = blob;
-  this.current = 0;
-}
-
-BlobReader.prototype.read = function (num, arrType) {
-  var reader = new FileReader();
-  var deferred = Promise.defer();
-  reader.onload = function (e) {
-    if (arrType) {
-      deferred.resolve(new arrType(e.target.result));
-    } else {
-      deferred.resolve(e.target.result);
-    }
-  };
-  reader.readAsArrayBuffer(this.blob.slice(this.current, this.current + num));
-  this.current += num;
-  return deferred.promise;
-};
+//function BlobReader(blob) {
+//  if (!(this instanceof BlobReader)) {
+//    return new BlobReader(blob);
+//  }
+//  this.blob = blob;
+//  this.current = 0;
+//}
+//
+//BlobReader.prototype.read = function (num, arrType) {
+//  var reader = new FileReader();
+//  var deferred = Promise.defer();
+//  reader.onload = function (e) {
+//    if (arrType) {
+//      deferred.resolve(new arrType(e.target.result));
+//    } else {
+//      deferred.resolve(e.target.result);
+//    }
+//  };
+//  reader['readAs' + arrType](
+//      this.blob.slice(this.current, this.current + num));
+//  this.current += num;
+//  return deferred.promise;
+//};
 
 Handshake.prototype.handleMessage = function (msg) {
   var i;
@@ -145,34 +148,36 @@ Handshake.prototype.handleMessage = function (msg) {
       throw new Error('Unknown version');
     }
     v = parseFloat(v);
-    if (v < 3.008) {
+    if (v < 3.003) {
       throw new Error('Unsupported version');
     }
     this.version = msg;
     this.setMessageType(MESSAGE_TYPES.ARRAY_BUFFER);
     console.info('Working with version', msg);
-    this.send('RFB 003.008\n');
+    this.send('RFB 004.001\n');
     return;
   }
   if (!this.security) {
-    var types = new Uint8Array(msg);
-    var current;
-    var toUse;
-    for (i = 0; i < types.length; i += 1) {
-      current = types[i].toString();
-      if (!this.supportedSecurity[current]) {
-        console.warn(SECURITY_TYPES[current] + ' not supported');
-      } else {
-        toUse = current;
+    BlobReader(new Blob([msg]))
+    .readUint8(function (types) {
+      var current;
+      var toUse;
+      for (i = 0; i < types.length; i += 1) {
+        current = types[i].toString();
+        if (!this.supportedSecurity[current]) {
+          console.warn(SECURITY_TYPES[current] + ' not supported');
+        } else {
+          toUse = current;
+        }
       }
-    }
-    this.security = parseInt(toUse);
-    if (this.security) {
-      console.info(SECURITY_TYPES[toUse] + ' security will be used');
-    }
-    this.setMessageType(MESSAGE_TYPES.ARRAY_BUFFER);
-    this.send(new Uint8Array([this.security]));
-    return;
+      this.security = parseInt(toUse);
+      if (this.security) {
+        console.info(SECURITY_TYPES[toUse] + ' security will be used');
+      }
+      this.setMessageType(MESSAGE_TYPES.ARRAY_BUFFER);
+      this.send(new Uint8Array([this.security]));
+      return;
+    }.bind(this));
   }
   if (!this.securityCompleted) {
     var arr = new Uint8Array(msg);
@@ -191,14 +196,10 @@ Handshake.prototype.handleMessage = function (msg) {
     console.log('Handling ServerInit');
     var blob = new Blob([msg]);
     var reader = BlobReader(blob);
-    reader.read(2, Uint16Array, function () {
-    })
-    .read(2, Uint8Array, function () {
+    reader.read(2, BlobReader.ARRAY_BUFFER, function (bytes) {
+      var res = new Uint16Array(bytes);
+      console.log('Width', res[0]);
     });
-      .then(function (res) {
-        console.log(res[0]);
-      });
-    console.info('Width', unpack.read(2), 'height', unpack.read(2));
 //    console.info('Name length', arr32[5]);
   }
   console.log(msg);
