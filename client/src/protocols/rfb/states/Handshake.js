@@ -154,7 +154,7 @@ Handshake.prototype.handleMessage = function (msg) {
     this.version = msg;
     this.setMessageType(MESSAGE_TYPES.ARRAY_BUFFER);
     console.info('Working with version', msg);
-    this.send('RFB 004.001\n');
+    this.send('RFB 003.008\n');
     return;
   }
   if (!this.security) {
@@ -176,8 +176,8 @@ Handshake.prototype.handleMessage = function (msg) {
       }
       this.setMessageType(MESSAGE_TYPES.ARRAY_BUFFER);
       this.send(new Uint8Array([this.security]));
-      return;
     }.bind(this));
+    return;
   }
   if (!this.securityCompleted) {
     var arr = new Uint8Array(msg);
@@ -196,9 +196,22 @@ Handshake.prototype.handleMessage = function (msg) {
     console.log('Handling ServerInit');
     var blob = new Blob([msg]);
     var reader = BlobReader(blob);
-    reader.read(2, BlobReader.ARRAY_BUFFER, function (bytes) {
-      var res = new Uint16Array(bytes);
+    reader.readUint16(2, function (res) {
       console.log('Width', res[0]);
+    })
+    .readUint16(2, function (res) {
+      console.log('Height', res[0]);
+    })
+    .readArrayBuffer(16, function (bytes) {
+      var blob = new Blob([bytes]);
+      console.log(blob);
+    })
+    .readUint32(4, function (bytes) {
+      var len = bytes[0];
+      console.log('Length of', len);
+      reader.readText(len, function (text) {
+        console.info('Device name is', text);
+      });
     });
 //    console.info('Name length', arr32[5]);
   }
