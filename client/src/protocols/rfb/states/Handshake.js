@@ -48,6 +48,7 @@
   BlobReader.BINARY_STRING = 'BinaryString';
   BlobReader.TEXT = 'Text';
   BlobReader.DATA_URL = 'DataURL';
+  BlobReader.BLOB = 'Blob';
 
   BlobReader.ENDIANNESS = {
     BIG_ENDIAN: 'BIG_ENDIAN',
@@ -60,33 +61,44 @@
 
   /* jshint validthis: true */
   function invokeNext() {
+
+    function done(data) {
+      current.cb(data);
+      this._pendingTask = false;
+      this._position += current.count;
+      invokeNext.call(this);
+    }
+
     var current = this._queue.shift();
     if (!current) {
       return;
+    }
+    if (current.count === undefined) {
+      current.count = this._blob.size - this._position;
     }
     if (this._position + current.count > this._blob.size) {
       throw new Error('Limit reached. Trying to read ' +
           (this._position + current.count) + ' bytes out of ' +
           this._blob.size + '.');
     }
-    var reader = new FileReader();
-    this._pendingTask = true;
-    reader.onload = function (e) {
-      var data = e.target.result;
-      this._pendingTask = false;
-      current.cb(data);
-      invokeNext.call(this);
-    }.bind(this);
-    reader.onerror = function () {
-      throw new Error('Error while reading the blob');
-    };
     if (!current.type) {
       current.type = BlobReader.BINARY_STRING;
     }
-    reader['readAs' + current.type](
-        this._blob.slice(this._position, this._position + current.count)
-    );
-    this._position += current.count;
+    var slice = this._blob
+      .slice(this._position, this._position + current.count);
+    if (current.type === BlobReader.BLOB) {
+      done.call(this, slice);
+    } else {
+      var reader = new FileReader();
+      this._pendingTask = true;
+      reader.onload = function (e) {
+        done.call(this, e.target.result);
+      }.bind(this);
+      reader.onerror = function () {
+        throw new Error('Error while reading the blob');
+      };
+      reader['readAs' + current.type](slice);
+    }
   }
 
   /**
@@ -217,6 +229,9 @@
       if (this._currentEndianness !== endianness) {
         data = byteFormatter['swap' + bitsNum](data);
       }
+      if (count === octets) {
+        data = data[0];
+      }
       this._currentResult[name] = data;
     }.bind(this);
     return this.readArrayBuffer(count, callback);
@@ -279,12 +294,29 @@
    * @return {BlobReader} Return the target object
    */
   BlobReader.prototype.readBlob = function (name, count) {
-    var result = this._blob.slice(this._position, this._position + count);
     this._queue.push({
       count: count,
-      cb: function () {
+      type: BlobReader.BLOB,
+      cb: function (result) {
         this._currentResult[name] = result;
       }.bind(this)
+    });
+    return this;
+  };
+
+  /**
+   * Skips defined amount of bytes, usually used for padding
+   *
+   * @public
+   * @param {Numner} count Number of bytes to be skipped
+   * @return {BlobReader} Retnr the target object
+   */
+  BlobReader.prototype.skip = function (count) {
+    count = count || 1;
+    this._queue.push({
+      count: count,
+      type: BlobReader.BLOB,
+      cb: function () {}
     });
     return this;
   };
@@ -302,7 +334,7 @@
     var res = this._currentResult;
     var task = {
       count: 0,
-      type: BlobReader.ARRAY_BUFFER,
+      type: BlobReader.BLOB,
       cb: function () {
         cb(res);
         this._currentResult = null;
@@ -455,6 +487,17 @@ Handshake.prototype = Object.create(BaseState.prototype);
 //  return deferred.promise;
 //};
 
+Handshake.prototype.sendUpdateRequest = function () {
+  var result = [];
+  result.push(new Uint8Array([3]));
+  result.push(new Uint8Array([1]));
+  result.push(new Uint16Array([0]));
+  result.push(new Uint16Array([0]));
+  result.push(new Uint16Array([this.width]));
+  result.push(new Uint16Array([this.height]));
+  this.send(new Blob(result));
+};
+
 Handshake.prototype.handleMessage = function (msg) {
   var i;
   if (!this.version) {
@@ -479,6 +522,9 @@ Handshake.prototype.handleMessage = function (msg) {
         var types = obj.types;
         var current;
         var toUse;
+        if (typeof types.length === 'undefined') {
+          types = [types];
+        }
         for (i = 0; i < types.length; i += 1) {
           current = types[i].toString();
           if (!this.supportedSecurity[current]) {
@@ -518,16 +564,68 @@ Handshake.prototype.handleMessage = function (msg) {
     .readBlob('pixelFormat', 16)
     .readUint32('len')
     .commit(function (result) {
-      var width = result.width[0];
-      var height = result.height[0];
-      var len = result.len[0];
+      var width = result.width;
+      var height = result.height;
+      var len = result.len;
+      this.width = width;
+      this.height = height;
       reader
       .readText(len, function (name) {
         console.info('Width: ' + width + ', height: ' +
           height + ', len: ' + len + ', hostname: ' + name);
       });
-    });
+      BlobReader(result.pixelFormat)
+      .readUint8('bitsPerPixel')
+      .readUint8('depth')
+      .readUint8('bigEndian')
+      .readUint8('trueColor')
+      .readUint16('redMax')
+      .readUint16('greenMax')
+      .readUint16('blueMax')
+      .readUint8('redShift')
+      .readUint8('greenShift')
+      .readUint8('blueShift')
+      .commit(function (data) {
+        this._pixelFormat = data;
+        console.log(data);
+      }.bind(this));
+    }.bind(this));
+    setTimeout(function () {
+      this.sendUpdateRequest();
+    }.bind(this), 2000);
+    this.serverInitMessage = true;
     return;
   }
-  console.log(msg);
+  this.handleUpdate(msg);
+};
+
+Handshake.prototype._readRect = function (reader) {
+  reader
+  .readUint16('x')
+  .readUint16('y')
+  .readUint16('width')
+  .readUint16('height')
+  .readUint32('encoding')
+  .commit(function (data) {
+    console.log(data);
+  });
+};
+
+Handshake.prototype.handleUpdate = function (data) {
+  var blb = new Blob([data]);
+  BlobReader(blb, BlobReader.ENDIANNESS.BIG_ENDIAN)
+  .skip()
+  .readUint8('type')
+  .readUint16('rectsCount')
+  .readBlob('rects')
+  .commit(function (data) {
+    if (data.type === 0) {
+      console.log('Total', data.rectsCount, blb.size);
+      var rects = [];
+      var reader = new BlobReader(data.rects, BlobReader.ENDIANNESS.BIG_ENDIAN);
+      for (var i = 0; i < data.rectsCount; i += 1) {
+        rects.push(this._readRect(reader));
+      }
+    }
+  }.bind(this));
 };

@@ -33,6 +33,11 @@ wss.on('connection', function (ws) {
       });
     }
   });
+  ws.on('close', function () {
+    if (client) {
+      client.end();
+    }
+  });
 });
 
 console.log('Listening on', 8081);
