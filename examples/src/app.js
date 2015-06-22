@@ -3,7 +3,7 @@
 /* global Handshake, RfbLifeSpan, LaserTag */
 
 var bridge = new LaserTag({
-  host: '192.168.0.118',
+  host: '192.168.0.148',
   port: 5901
 });
 var rfbHandshake = new Handshake(bridge);

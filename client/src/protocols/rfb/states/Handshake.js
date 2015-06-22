@@ -614,8 +614,8 @@ Handshake.prototype._readRect = function (reader) {
 Handshake.prototype.handleUpdate = function (data) {
   var blb = new Blob([data]);
   BlobReader(blb, BlobReader.ENDIANNESS.BIG_ENDIAN)
-  .skip()
   .readUint8('type')
+  .skip()
   .readUint16('rectsCount')
   .readBlob('rects')
   .commit(function (data) {

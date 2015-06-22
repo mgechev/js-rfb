@@ -2,6 +2,7 @@
 
 /* global EventEmitter, Promise */
 
+// The "Protocol" class
 function LaserTag(config) {
   this.host = config.host;
   this.port = config.port;
@@ -26,7 +27,7 @@ LaserTag.prototype.setStates = function (states) {
 };
 
 LaserTag.prototype.connect = function () {
-  this.socket = new WebSocket('ws://localhost:8081');
+  this.socket = new WebSocket('ws://localhost:5545');
   var deferred = Promise.defer();
   this.socket.onopen = this.initiateHandshake.bind(this, deferred);
   this.socket.onmessage = this.handleMessage.bind(this);

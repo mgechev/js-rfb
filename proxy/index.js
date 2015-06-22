@@ -1,7 +1,7 @@
 'use strict';
 
 var WebSocketServer = require('ws').Server;
-var wss = new WebSocketServer({ port: 8081 });
+var wss = new WebSocketServer({ port: 5545 });
 var net = require('net');
 
 wss.on('connection', function (ws) {
@@ -40,4 +40,4 @@ wss.on('connection', function (ws) {
   });
 });
 
-console.log('Listening on', 8081);
+console.log('Listening on', 5545);
